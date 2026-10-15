@@ -71,6 +71,13 @@ def metrics(bars):
     }
 
 
+def last_price(ticker):
+    try:
+        return yf.Ticker(ticker).fast_info["lastPrice"]
+    except Exception:
+        return float("nan")
+
+
 def next_earnings(ticker):
     try:
         dates = yf.Ticker(ticker).calendar.get("Earnings Date") or []
@@ -117,6 +124,10 @@ def main():
     ) / 3
     watch = passed.sort_values("score", ascending=False).head(TOP_N)
 
+    print(f"Fetching last price for top {len(watch)}...")
+    watch["last_price"] = [last_price(t) for t in watch.index]
+    watch["chg_from_close"] = watch["last_price"] / watch["close"] - 1
+
     if CHECK_EARNINGS:
         print(f"Checking earnings dates for top {len(watch)}...")
         session = pd.Timestamp(watch["session"].iloc[0])
@@ -128,11 +139,12 @@ def main():
 
     cols = [
         "Security", "GICS Sector", "session", "score", "close", "chg_pct",
-        "rel_volume", "volume", "avg_volume", "atr", "atr_pct",
+        "last_price", "chg_from_close", "rel_volume", "volume", "avg_volume", "atr", "atr_pct",
         "prev_high", "prev_low", "high_20d", "low_20d", "pct_from_52w_high",
     ] + (["next_earnings", "earnings_soon"] if CHECK_EARNINGS else [])
     watch = watch[cols].round({
-        "score": 3, "close": 2, "chg_pct": 4, "rel_volume": 2, "avg_volume": 0,
+        "score": 3, "close": 2, "chg_pct": 4, "last_price": 2,
+        "chg_from_close": 4, "rel_volume": 2, "avg_volume": 0,
         "atr": 2, "atr_pct": 4, "prev_high": 2, "prev_low": 2,
         "high_20d": 2, "low_20d": 2, "pct_from_52w_high": 4,
     })
@@ -142,7 +154,7 @@ def main():
     watch.to_csv(out)
 
     with pd.option_context("display.width", 200, "display.max_columns", 20):
-        print(watch[["close", "chg_pct", "rel_volume", "atr_pct", "prev_high",
+        print(watch[["close", "last_price", "chg_from_close", "chg_pct", "rel_volume", "atr_pct", "prev_high",
                      "prev_low", "score"]
                     + (["earnings_soon"] if CHECK_EARNINGS else [])])
     print(f"\nSaved {len(watch)} rows to {out}")
