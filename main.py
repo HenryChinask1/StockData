@@ -1,7 +1,7 @@
 import yfinance as yf
 
 def main():
-    symbol = yf.Ticker("GME")
+    symbol = yf.Ticker("EME")
     details = symbol.get_fast_info()
     for i in details.items():
         print(i)
